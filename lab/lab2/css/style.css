@@ -52,3 +52,10 @@ body {
 @media screen and (max-width: 479px) {
 
 }
+.results {
+  width: 50%;
+  margin-top: 15px;
+  background-color: rgba(216,216,216, 0.3);
+  font-size: 12px;
+  padding: 4px;
+}

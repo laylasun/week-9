@@ -125,8 +125,7 @@ var state = {
 
 var currentLat, currentLng,
   currentlocation={};
-var latGoTo, lngGoTo, coorGoTo={};
-var twoPoints=[];
+var searchResults=[];
 var showResults;
 /* We'll use underscore's `once` function to make sure this only happens
  *  one time even if weupdate the position later
@@ -154,10 +153,9 @@ $(document).ready(function() {
       updatePosition(position.coords.latitude, position.coords.longitude, position.timestamp);
       currentLat=position.coords.latitude;
       currentLng=position.coords.longitude;
-      currentlocation={"lat": currentLat, "lon": currentLng};
-      twoPoints.push(currentlocation);
-      console.log(currentLat, currentlocation,twoPoints);
-      return currentLng, currentLat, currentlocation,twoPoints;
+      currentlocation={"lat": currentLat, "lng": currentLng};
+      console.log(currentLat, currentlocation);
+      return currentLng, currentLat, currentlocation;
     });
   } else {
     alert("Unable to access geolocation API!");
@@ -181,48 +179,55 @@ $(document).ready(function() {
     var search = "https://search.mapzen.com/v1/search?text=" + dest + "&api_key=mapzen-24TRuHw";
     //by default, 10 top results will be displayed
     $.ajax(search).done(function(s_outcome){
-        var pointsArray= s_outcome.features[0];
-        //console.log(pointsArray);
-        latGoTo=pointsArray.geometry.coordinates[1];
-        lngGoTo=pointsArray.geometry.coordinates[0];
-        console.log("dd",latGoTo,lngGoTo);
-         L.circleMarker([latGoTo, lngGoTo], {color: "red"}).addTo(map);
-        coorGoTo = {"lat":latGoTo,"lon":lngGoTo};
-        twoPoints.push(coorGoTo);
-        //console.log(twoPoints);
-        var GeoRoute = {
-          "locations": twoPoints,
-          "costing":"auto",
-          "directions_options":{"units":"miles"}
-        };
-        //console.log(JSON.stringify(GeoRoute));
-        var geoRoute='https://matrix.mapzen.com/optimized_route?json='+JSON.stringify(GeoRoute)+'&api_key=mapzen-24TRuHw';
-        $.ajax(geoRoute).done(function(datum){
-          //console.log(datum.trip.legs[0].shape); -->object already
-          var shape1=datum.trip.legs[0].shape;
-          var decode_shape1= decode(shape1);
-          var reverseCoor = _.map(decode_shape1, function(d){
-            return (d.reverse());
-          });
-          console.log(reverseCoor);
+        var pointsArray= s_outcome.features;
+        console.log(pointsArray);
+        var selectedArray =_.filter(pointsArray, function(obj){
+          return obj.properties.confidence > 0.9;
+        });
+        var confidenceAsIndex = _.map(selectedArray,function(obj2){
+          var objNew = {
+            'confidence': obj2.properties.confidence,
+            'others': obj2
+          };
+          return objNew;
+        });
+        var sorted = _.sortBy(confidenceAsIndex, 'confidence');
+        console.log(sorted);
+        var lat, lng, county, region, accuracy, accuracy1, checkboxid;
+        for(var i=0; i<sorted.length; i++){
+            checkboxid='#cbox-input'+i;
+            showResults='<div class="results"><input type="checkbox" id="cbox-input'+i+'"><br><div>Accuracy: <span id="accu"></span> </div><div>Latitude: <span id="lat"></span> </div><div>Longtitude: <span id="lng"></span></div><div>County: <span id="county"></span></div><div>Region: <span id="region"></span> </div></div>';
+            $('#calculate').after(showResults);
+              lat=sorted[i].others.geometry.coordinates[1];
+              lng=sorted[i].others.geometry.coordinates[0];
+              county=sorted[i].others.properties.county;
+              region=sorted[i].others.properties.label;
+              accuracy=parseFloat(sorted[i].confidence)*100;
+              accuracy1=accuracy.toPrecision(3)+'%';
+            $('#accu').text(accuracy1);
+            $('#lat').text(lat);
+            $('#lng').text(lng);
+            $('#county').text(county);
+            $('#region').text(region);
+            console.log(checkboxid);
 
-          var routeLine = {
-             "type": "FeatureCollection",
-             "features": [
-               {
-                 "type": "Feature",
-                 "properties": {},
-                 "geometry": {
-                   "type": "LineString",
-                   "coordinates": reverseCoor
-                 }
-               }
-            ]};
-            console.log(routeLine);
-            L.geoJSON(routeLine).addTo(map);
+        }
 
-           });
-         });
-     });
+    });
 
   });
+
+  var mystry='https://matrix.mapzen.com/optimized_route?json={"locations":[{"lat":40.042072,"lon":-76.306572},{"lat":39.992115,"lon":-76.781559},{"lat":39.984519,"lon":-76.6956},{"lat":39.996586,"lon":-76.769028},{"lat":39.984322,"lon":-76.706672}],"costing":"auto","directions_options":{"units":"miles"}}&api_key=mapzen-24TRuHw';
+ $.ajax(mystry).done(function(datum){
+   //console.log(datum.trip.legs[0].shape); -->object already
+   var shape1=datum.trip.legs[0].shape;
+   var decode_shape1= decode(shape1);
+   console.log(datum.trip.legs);
+   var linestring1 = turf.lineString(decode_shape1);// the geojson storing the line segments
+   console.log(linestring1);
+    });
+  });
+
+var banana={color:"red",taste:"banana"};
+var en = "www.doyoulikebanana.com?"+ JSON.stringify(banana);
+console.log(en);
